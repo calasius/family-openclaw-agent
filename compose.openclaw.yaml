@@ -1,0 +1,90 @@
+services:
+  openclaw-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.openclaw
+    image: school-guardian-openclaw
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    env_file:
+      - openclaw/.env
+    environment:
+      SCHOOL_GUARDIAN_DB_PATH: /home/node/.openclaw/state/school_guardian.db
+      SCHOOL_GUARDIAN_FIXTURE_PATH: /home/node/.openclaw/state/classroom_fixture.json
+      SCHOOL_GUARDIAN_DOWNLOAD_DIR: /home/node/.openclaw/state/downloads
+      SCHOOL_GUARDIAN_GOOGLE_CREDENTIALS_PATH: /home/node/.openclaw/secrets/google_credentials.json
+      SCHOOL_GUARDIAN_GOOGLE_TOKEN_PATH: /home/node/.openclaw/secrets/google_token.json
+    network_mode: "host"
+    volumes:
+      - .:/workspace:Z
+      - ./docker/resolv.conf:/etc/resolv.conf:ro
+      - openclaw-home:/home/node/.openclaw:Z
+    working_dir: /app
+    command:
+      - sh
+      - -lc
+      - |
+        mkdir -p /home/node/.openclaw
+        mkdir -p /home/node/.openclaw/extensions
+        mkdir -p /home/node/.openclaw/agents/school-guardian/agent
+        mkdir -p /home/node/.openclaw/secrets
+        mkdir -p /home/node/.openclaw/state/downloads
+        rm -rf /home/node/.openclaw/workspaces/school-guardian
+        mkdir -p /home/node/.openclaw/workspaces
+        cp -R /workspace/agents/school-guardian /home/node/.openclaw/workspaces/school-guardian
+        rm -rf /home/node/.openclaw/extensions/school-guardian-tools
+        cp -R /workspace/.openclaw/extensions/school-guardian-tools /home/node/.openclaw/extensions/school-guardian-tools
+        if [ -f /workspace/secrets/google_credentials.json ]; then cp /workspace/secrets/google_credentials.json /home/node/.openclaw/secrets/google_credentials.json; fi
+        if [ -f /workspace/secrets/google_token.json ] && [ ! -f /home/node/.openclaw/secrets/google_token.json ]; then cp /workspace/secrets/google_token.json /home/node/.openclaw/secrets/google_token.json; fi
+        if [ -f /workspace/data/classroom_fixture.json ]; then cp /workspace/data/classroom_fixture.json /home/node/.openclaw/state/classroom_fixture.json; fi
+
+        cp /workspace/openclaw/openclaw.json.example /home/node/.openclaw/openclaw.json
+
+        printf '{"profiles":{"azure-openai-responses:default":{"provider":"azure-openai-responses","mode":"api_key","apiKey":"%s","baseUrl":"%s"}},"order":{"azure-openai-responses":["azure-openai-responses:default"]}}\n' "$${AZURE_OPENAI_API_KEY}" "$${AZURE_OPENAI_BASE_URL}" >/home/node/.openclaw/agents/school-guardian/agent/auth-profiles.json
+
+        node /app/dist/index.js gateway --allow-unconfigured &
+        GATEWAY_PID=$!
+
+        until node /app/dist/index.js cron list >/dev/null 2>&1; do
+          sleep 2
+        done
+
+        if ! node /app/dist/index.js cron list | grep -q 'school-guardian-sync-10m'; then
+          node /app/dist/index.js cron add \
+            --name "school-guardian-sync-10m" \
+            --every 10m \
+            --session isolated \
+            --wake now \
+            --light-context \
+            --no-deliver \
+            --message "Ejecutá únicamente la tool school_guardian_sync para actualizar Classroom. No entregues respuesta al usuario. Si falla, devolvé una sola línea corta con el error."
+        fi
+
+        if ! node /app/dist/index.js cron list | grep -q 'school-guardian-sync-startup'; then
+          node /app/dist/index.js cron add \
+            --name "school-guardian-sync-startup" \
+            --at 20s \
+            --session isolated \
+            --wake now \
+            --light-context \
+            --no-deliver \
+            --delete-after-run \
+            --message "Ejecutá únicamente la tool school_guardian_sync para actualizar Classroom al iniciar. No entregues respuesta al usuario. Si falla, devolvé una sola línea corta con el error." || true
+        fi
+
+        wait $GATEWAY_PID
+
+  openclaw-cli:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    container_name: openclaw-cli
+    profiles: ["cli"]
+    env_file:
+      - openclaw/.env
+    volumes:
+      - .:/workspace:Z
+    working_dir: /app
+    network_mode: "service:openclaw-gateway"
+    entrypoint: ["node", "/app/dist/index.js"]
+
+volumes:
+  openclaw-home:

@@ -1,0 +1,36 @@
+FROM ghcr.io/openclaw/openclaw:latest
+USER root
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright \
+    UV_PROJECT_ENVIRONMENT=/opt/school-guardian-venv \
+    UV_PYTHON_INSTALL_DIR=/opt/uv-python \
+    UV_LINK_MODE=copy
+
+COPY pyproject.toml uv.lock .python-version README.md /opt/school-guardian-build/
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m venv /opt/uvenv \
+    && /opt/uvenv/bin/pip install --no-cache-dir uv \
+    && ln -s /opt/uvenv/bin/uv /usr/local/bin/uv \
+    && cd /opt/school-guardian-build \
+    && /usr/local/bin/uv sync --locked --no-dev --extra google --extra extract --extra export \
+    && chmod -R a+rX /opt/school-guardian-venv /opt/school-guardian-build /opt/uv-python /opt/uvenv \
+    && npx --yes playwright install --with-deps chromium \
+    && chmod -R a+rx /opt/ms-playwright \
+    && CHROME=/opt/ms-playwright/chromium-1217/chrome-linux64/chrome \
+    && ln -s $CHROME /usr/bin/google-chrome \
+    && ln -s $CHROME /usr/bin/chromium \
+    && ln -s $CHROME /usr/bin/chromium-browser \
+    && ln -s /usr/bin/python3 /usr/bin/python \
+    && node -e " \
+        const fs = require('fs'); \
+        const f = '/app/node_modules/playwright-core/lib/client/page.js'; \
+        let s = fs.readFileSync(f, 'utf8'); \
+        const patch = 'async _snapshotForAI(options = {}) { const snapshot = await this.ariaSnapshot({ timeout: options.timeout, depth: options.depth }); return { full: snapshot || \"\" }; }\n  '; \
+        s = s.replace('async ariaSnapshot(options = {}) {', patch + 'async ariaSnapshot(options = {}) {'); \
+        fs.writeFileSync(f, s); \
+        console.log('patched _snapshotForAI'); \
+    "
+USER node
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright

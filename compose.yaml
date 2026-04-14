@@ -1,0 +1,22 @@
+services:
+  school-guardian:
+    build:
+      context: .
+    image: school-guardian:local
+    env_file:
+      - .env
+    environment:
+      SCHOOL_GUARDIAN_DB_PATH: ${SCHOOL_GUARDIAN_DB_PATH:-/app/data/school_guardian.db}
+      SCHOOL_GUARDIAN_CLASSROOM_SOURCE: ${SCHOOL_GUARDIAN_CLASSROOM_SOURCE:-fixture}
+      SCHOOL_GUARDIAN_FIXTURE_PATH: ${SCHOOL_GUARDIAN_FIXTURE_PATH:-/app/data/classroom_fixture.json}
+      SCHOOL_GUARDIAN_GOOGLE_CREDENTIALS_PATH: ${SCHOOL_GUARDIAN_GOOGLE_CREDENTIALS_PATH:-/app/secrets/google_credentials.json}
+      SCHOOL_GUARDIAN_GOOGLE_TOKEN_PATH: ${SCHOOL_GUARDIAN_GOOGLE_TOKEN_PATH:-/app/secrets/google_token.json}
+      SCHOOL_GUARDIAN_GOOGLE_STUDENT_ID: ${SCHOOL_GUARDIAN_GOOGLE_STUDENT_ID:-me}
+      SCHOOL_GUARDIAN_GOOGLE_COURSE_STATES: ${SCHOOL_GUARDIAN_GOOGLE_COURSE_STATES:-ACTIVE,PROVISIONED}
+      SCHOOL_GUARDIAN_GOOGLE_PAGE_SIZE: ${SCHOOL_GUARDIAN_GOOGLE_PAGE_SIZE:-100}
+      SCHOOL_GUARDIAN_GOOGLE_OPEN_BROWSER: ${SCHOOL_GUARDIAN_GOOGLE_OPEN_BROWSER:-false}
+    volumes:
+      - ./data:/app/data
+      - ./agents:/app/agents:ro
+      - ./secrets:/app/secrets
+    command: ["uv", "run", "python", "-m", "school_guardian", "serve"]

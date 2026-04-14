@@ -1,0 +1,128 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "lan",
+    "port": 18789,
+    "auth": {
+      "token": "${OPENCLAW_GATEWAY_TOKEN}"
+    }
+  },
+  "env": {
+    "vars": {
+      "AZURE_OPENAI_API_KEY": "${AZURE_OPENAI_API_KEY}",
+      "AZURE_OPENAI_BASE_URL": "${AZURE_OPENAI_BASE_URL}",
+      "TELEGRAM_BOT_TOKEN": "${TELEGRAM_BOT_TOKEN}"
+    }
+  },
+  "browser": {
+    "headless": true,
+    "noSandbox": true,
+    "executablePath": "/opt/ms-playwright/chromium-1217/chrome-linux64/chrome",
+    "extraArgs": ["--disable-gpu", "--disable-dev-shm-usage"],
+    "profiles": {
+      "user": {
+        "cdpPort": 18801,
+        "color": "#00AA00"
+      },
+      "host": {
+        "cdpPort": 18802,
+        "color": "#FF4500"
+      }
+    }
+  },
+  "plugins": {
+    "load": {
+      "paths": [
+        "/home/node/.openclaw/extensions/school-guardian-tools",
+        "/app/extensions/browser"
+      ]
+    },
+    "allow": ["school-guardian-tools", "browser"],
+    "entries": {
+      "school-guardian-tools": {
+        "enabled": true
+      },
+      "browser": {
+        "enabled": true
+      }
+    }
+  },
+  "tools": {
+    "allow": [
+      "school_guardian_skill_log",
+      "school_guardian_web_search",
+      "school_guardian_ping",
+      "school_guardian_sync",
+      "school_guardian_list_pending",
+      "school_guardian_list_subjects",
+      "school_guardian_list_subjects_cli",
+      "school_guardian_daily_focus",
+      "school_guardian_task_detail",
+      "school_guardian_export_solution",
+      "browser"
+    ],
+    "deny": ["nodes"]
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/home/node/.openclaw/workspaces",
+      "model": {
+        "primary": "azure-openai-responses/gpt-4o"
+      },
+      "models": {
+        "azure-openai-responses/gpt-4o": {
+          "params": {
+            "responsesServerCompaction": true
+          }
+        }
+      }
+    },
+    "list": [
+      {
+        "id": "school-guardian",
+        "workspace": "/home/node/.openclaw/workspaces/school-guardian",
+        "tools": {
+          "allow": [
+            "school_guardian_skill_log",
+      "school_guardian_web_search",
+      "school_guardian_ping",
+            "school_guardian_sync",
+            "school_guardian_list_pending",
+            "school_guardian_list_subjects",
+            "school_guardian_list_subjects_cli",
+            "school_guardian_daily_focus",
+            "school_guardian_task_detail",
+            "school_guardian_export_solution",
+            "browser"
+          ],
+          "deny": ["nodes"]
+        }
+      }
+    ]
+  },
+  "bindings": [
+    {
+      "match": {
+        "channel": "telegram"
+      },
+      "agentId": "school-guardian"
+    }
+  ],
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "dmPolicy": "allowlist",
+      "allowFrom": [
+        "8687277701",
+        "8616681320",
+        "8582567139"
+      ],
+      "groups": {
+        "*": {
+          "requireMention": true
+        }
+      }
+    }
+  }
+}

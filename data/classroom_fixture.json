@@ -1,0 +1,74 @@
+{
+  "courses": [
+    {
+      "id": "math-01",
+      "name": "Matematica",
+      "courseWork": [
+        {
+          "id": "math-task-001",
+          "title": "Ejercicios 5 al 10",
+          "description": "Resolver y subir foto del cuaderno.",
+          "dueDate": "2026-04-08",
+          "state": "PENDING",
+          "materials": [
+            {
+              "type": "link",
+              "title": "Guia PDF",
+              "url": "https://example.com/guia-matematica.pdf",
+              "mimeType": "application/pdf"
+            }
+          ],
+          "createdAt": "2026-04-07T10:00:00",
+          "updatedAt": "2026-04-07T10:15:00"
+        },
+        {
+          "id": "math-task-002",
+          "title": "Repaso de fracciones",
+          "description": "Leer el apunte y resumir.",
+          "dueDate": "2026-04-10",
+          "state": "PENDING",
+          "createdAt": "2026-04-06T09:00:00",
+          "updatedAt": "2026-04-06T09:00:00"
+        }
+      ]
+    },
+    {
+      "id": "science-01",
+      "name": "Ciencias",
+      "courseWork": [
+        {
+          "id": "science-task-001",
+          "title": "Resumen del sistema solar",
+          "description": "Una carilla sobre planetas interiores.",
+          "dueDate": "2026-04-09",
+          "state": "PENDING",
+          "materials": [
+            {
+              "type": "link",
+              "title": "Consigna DOCX",
+              "url": "https://example.com/sistema-solar.docx",
+              "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            }
+          ],
+          "createdAt": "2026-04-07T08:30:00",
+          "updatedAt": "2026-04-07T08:30:00"
+        }
+      ]
+    },
+    {
+      "id": "english-01",
+      "name": "Ingles",
+      "courseWork": [
+        {
+          "id": "english-task-001",
+          "title": "Completar worksheet",
+          "description": "Unit 3, exercises A y B.",
+          "dueDate": null,
+          "state": "PENDING",
+          "createdAt": "2026-04-05T14:30:00",
+          "updatedAt": "2026-04-07T07:45:00"
+        }
+      ]
+    }
+  ]
+}

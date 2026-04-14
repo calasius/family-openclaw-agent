@@ -1,0 +1,61 @@
+{
+  gateway: {
+    mode: "local",
+    bind: "lan",
+    port: 18789,
+    auth: {
+      token: "${OPENCLAW_GATEWAY_TOKEN}",
+    },
+  },
+
+  identity: {
+    name: "School Guardian",
+    theme: "asistente escolar por Telegram para una estudiante",
+  },
+
+  env: {
+    vars: {
+      AZURE_OPENAI_API_KEY: "${AZURE_OPENAI_API_KEY}",
+      AZURE_OPENAI_BASE_URL: "${AZURE_OPENAI_BASE_URL}",
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}",
+    },
+  },
+
+  agents: {
+    defaults: {
+      workspace: "/workspace",
+      model: {
+        primary: "azure-openai-responses/gpt-4o",
+      },
+      models: {
+        "azure-openai-responses/gpt-4o": {
+          params: {
+            responsesServerCompaction: true,
+          },
+        },
+      },
+    },
+    list: [
+      {
+        id: "family-orchestrator",
+      },
+      {
+        id: "school-guardian",
+      },
+    ],
+  },
+
+  channels: {
+    telegram: {
+      enabled: true,
+      botToken: "${TELEGRAM_BOT_TOKEN}",
+      dmPolicy: "allowlist",
+      allowFrom: ["${TELEGRAM_ALLOWED_FROM}"],
+      groups: {
+        "*": {
+          requireMention: true,
+        },
+      },
+    },
+  },
+}

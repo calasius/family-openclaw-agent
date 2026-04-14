@@ -1,0 +1,11 @@
+{
+  "id": "school-guardian-tools",
+  "name": "School Guardian Tools",
+  "version": "0.1.0",
+  "description": "Agent tools that query the local school-guardian backend API.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false
+  },
+  "entry": "index.ts"
+}
