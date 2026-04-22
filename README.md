@@ -143,6 +143,44 @@ Abrir dashboard:
 docker compose --env-file openclaw/.env -f compose.openclaw.yaml run --rm openclaw-cli dashboard --no-open
 ```
 
+### Operar openclaw-gateway
+
+Levantar en background:
+
+```bash
+podman compose --env-file openclaw/.env -f compose.openclaw.yaml up -d openclaw-gateway
+```
+
+Bajar:
+
+```bash
+podman compose --env-file openclaw/.env -f compose.openclaw.yaml down
+```
+
+Reiniciar (mantiene volúmenes):
+
+```bash
+podman restart openclaw-gateway
+```
+
+Logs en vivo:
+
+```bash
+podman logs -f openclaw-gateway
+```
+
+Últimas N líneas:
+
+```bash
+podman logs --tail 200 openclaw-gateway
+```
+
+Shell dentro del contenedor:
+
+```bash
+podman exec -it openclaw-gateway bash
+```
+
 Notas:
 
 - La config fija `azure-openai-responses/gpt-4o` como modelo principal.
@@ -172,6 +210,43 @@ La estructura OpenClaw del repo quedó separada así:
 - `agents/school-guardian/skills/telegram-bridge`: atención por Telegram.
 
 Con esto, OpenClaw puede usar `school-guardian` como agente especializado y disparar comandos del CLI para sincronizar, listar tareas, bajar materiales y contestar mensajes.
+
+## Troubleshooting: token OAuth de Google expirado o revocado
+
+Síntoma (en logs del gateway o al correr `sync-classroom`):
+
+```
+google.auth.exceptions.RefreshError: ('invalid_grant: Token has been expired or revoked.', ...)
+```
+
+Google invalida el refresh token por inactividad prolongada, revocación manual, o rotación de credenciales. El refresh automático ya no funciona y hay que rehacer el flujo OAuth:
+
+1. Borrar el token viejo del host:
+
+```bash
+rm secrets/google_token.json
+```
+
+2. Regenerar el token con el flujo OAuth local (abre el browser para autorizar):
+
+```bash
+SCHOOL_GUARDIAN_CLASSROOM_SOURCE=google PYTHONPATH=src uv run python -m school_guardian sync-classroom
+```
+
+Esto crea un nuevo `secrets/google_token.json`.
+
+3. **Importante para openclaw-gateway:** el startup del gateway copia el token al volumen `openclaw-home` sólo si no existe (ver `compose.openclaw.yaml`, condición `[ ! -f ... ]`). Como el volumen persiste entre reinicios, el token viejo sigue adentro incluso después de un restart. Hay que pisarlo manualmente:
+
+```bash
+podman cp secrets/google_token.json openclaw-gateway:/home/node/.openclaw/secrets/google_token.json
+podman restart openclaw-gateway
+```
+
+Alternativa nuclear (borra también crons, workspaces y sesiones de OpenClaw):
+
+```bash
+podman compose --env-file openclaw/.env -f compose.openclaw.yaml down -v
+```
 
 ## Tests
 
