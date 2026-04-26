@@ -9,11 +9,13 @@ services:
     env_file:
       - openclaw/.env
     environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       SCHOOL_GUARDIAN_DB_PATH: /home/node/.openclaw/state/school_guardian.db
       SCHOOL_GUARDIAN_FIXTURE_PATH: /home/node/.openclaw/state/classroom_fixture.json
       SCHOOL_GUARDIAN_DOWNLOAD_DIR: /home/node/.openclaw/state/downloads
       SCHOOL_GUARDIAN_GOOGLE_CREDENTIALS_PATH: /home/node/.openclaw/secrets/google_credentials.json
       SCHOOL_GUARDIAN_GOOGLE_TOKEN_PATH: /home/node/.openclaw/secrets/google_token.json
+      AGENT_WATCH_DB_PATH: /home/node/.openclaw/state/agent_watch.db
     network_mode: "host"
     volumes:
       - .:/workspace:Z
@@ -27,11 +29,14 @@ services:
         mkdir -p /home/node/.openclaw
         mkdir -p /home/node/.openclaw/extensions
         mkdir -p /home/node/.openclaw/agents/school-guardian/agent
+        mkdir -p /home/node/.openclaw/agents/agent-watch/agent
         mkdir -p /home/node/.openclaw/secrets
         mkdir -p /home/node/.openclaw/state/downloads
         rm -rf /home/node/.openclaw/workspaces/school-guardian
+        rm -rf /home/node/.openclaw/workspaces/agent-watch
         mkdir -p /home/node/.openclaw/workspaces
         cp -R /workspace/agents/school-guardian /home/node/.openclaw/workspaces/school-guardian
+        cp -R /workspace/agents/agent-watch /home/node/.openclaw/workspaces/agent-watch
         rm -rf /home/node/.openclaw/extensions/school-guardian-tools
         cp -R /workspace/.openclaw/extensions/school-guardian-tools /home/node/.openclaw/extensions/school-guardian-tools
         if [ -f /workspace/secrets/google_credentials.json ]; then cp /workspace/secrets/google_credentials.json /home/node/.openclaw/secrets/google_credentials.json; fi
@@ -40,7 +45,12 @@ services:
 
         cp /workspace/openclaw/openclaw.json.example /home/node/.openclaw/openclaw.json
 
-        printf '{"profiles":{"azure-openai-responses:default":{"provider":"azure-openai-responses","mode":"api_key","apiKey":"%s","baseUrl":"%s"}},"order":{"azure-openai-responses":["azure-openai-responses:default"]}}\n' "$${AZURE_OPENAI_API_KEY}" "$${AZURE_OPENAI_BASE_URL}" >/home/node/.openclaw/agents/school-guardian/agent/auth-profiles.json
+        if [ -n "$${OPENROUTER_API_KEY}" ] && [ ! -f /home/node/.openclaw/agents/school-guardian/agent/auth-profiles.json ]; then
+          printf '{"profiles":{"openrouter:default":{"provider":"openrouter","mode":"api_key","apiKey":"%s"}},"order":{"openrouter":["openrouter:default"]}}\n' "$${OPENROUTER_API_KEY}" >/home/node/.openclaw/agents/school-guardian/agent/auth-profiles.json
+        fi
+        if [ -n "$${OPENROUTER_API_KEY}" ] && [ ! -f /home/node/.openclaw/agents/agent-watch/agent/auth-profiles.json ]; then
+          printf '{"profiles":{"openrouter:default":{"provider":"openrouter","mode":"api_key","apiKey":"%s"}},"order":{"openrouter":["openrouter:default"]}}\n' "$${OPENROUTER_API_KEY}" >/home/node/.openclaw/agents/agent-watch/agent/auth-profiles.json
+        fi
 
         node /app/dist/index.js gateway --allow-unconfigured &
         GATEWAY_PID=$!
@@ -70,6 +80,32 @@ services:
             --no-deliver \
             --delete-after-run \
             --message "Ejecutá únicamente la tool school_guardian_sync para actualizar Classroom al iniciar. No entregues respuesta al usuario. Si falla, devolvé una sola línea corta con el error." || true
+        fi
+
+        if [ -n "$${AGENT_WATCH_X_BEARER_TOKEN}" ] || [ -n "$${AGENT_WATCH_RSS_URLS}" ]; then
+        if ! node /app/dist/index.js cron list | grep -q 'agent-watch-fetch-15m'; then
+          node /app/dist/index.js cron add \
+            --name "agent-watch-fetch-15m" \
+            --every 15m \
+            --session isolated \
+            --wake now \
+            --light-context \
+            --no-deliver \
+            --message "Use only the agent_watch_fetch tool to fetch Agent Watch updates. Do not deliver a user response. If it fails, return one short error line."
+        fi
+        fi
+
+        if [ -n "$${AGENT_WATCH_TELEGRAM_BOT_TOKEN}" ] && [ -n "$${AGENT_WATCH_TELEGRAM_TARGET}" ]; then
+        if ! node /app/dist/index.js cron list | grep -q 'agent-watch-digest-2h'; then
+          node /app/dist/index.js cron add \
+            --name "agent-watch-digest-2h" \
+            --every 120m \
+            --session isolated \
+            --wake now \
+            --light-context \
+            --no-deliver \
+            --message "Use only the agent_watch_send tool to send the Agent Watch digest to the separate Telegram channel. Do not deliver a user response. If it fails, return one short error line."
+        fi
         fi
 
         wait $GATEWAY_PID

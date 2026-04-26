@@ -15,9 +15,9 @@
 
   env: {
     vars: {
-      AZURE_OPENAI_API_KEY: "${AZURE_OPENAI_API_KEY}",
-      AZURE_OPENAI_BASE_URL: "${AZURE_OPENAI_BASE_URL}",
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY}",
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}",
+      AGENT_WATCH_TELEGRAM_BOT_TOKEN: "${AGENT_WATCH_TELEGRAM_BOT_TOKEN}",
     },
   },
 
@@ -25,14 +25,7 @@
     defaults: {
       workspace: "/workspace",
       model: {
-        primary: "azure-openai-responses/gpt-4o",
-      },
-      models: {
-        "azure-openai-responses/gpt-4o": {
-          params: {
-            responsesServerCompaction: true,
-          },
-        },
+        primary: "openai-codex/gpt-5.4",
       },
     },
     list: [
@@ -42,15 +35,47 @@
       {
         id: "school-guardian",
       },
+      {
+        id: "agent-watch",
+      },
     ],
   },
+
+  bindings: [
+    {
+      match: {
+        channel: "telegram",
+        accountId: "agentwatch",
+      },
+      agentId: "agent-watch",
+    },
+    {
+      match: {
+        channel: "telegram",
+        accountId: "default",
+      },
+      agentId: "school-guardian",
+    },
+  ],
 
   channels: {
     telegram: {
       enabled: true,
-      botToken: "${TELEGRAM_BOT_TOKEN}",
+      defaultAccount: "default",
       dmPolicy: "allowlist",
       allowFrom: ["${TELEGRAM_ALLOWED_FROM}"],
+      accounts: {
+        default: {
+          name: "School Guardian",
+          botToken: "${TELEGRAM_BOT_TOKEN}",
+        },
+        agentwatch: {
+          name: "Agent Watch",
+          dmPolicy: "open",
+          allowFrom: ["*"],
+          botToken: "${AGENT_WATCH_TELEGRAM_BOT_TOKEN}",
+        },
+      },
       groups: {
         "*": {
           requireMention: true,

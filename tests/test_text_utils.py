@@ -31,6 +31,11 @@ class NormalizeMathTextTestCase(unittest.TestCase):
 
         self.assertEqual(normalized, "Total pagado - vuelto y potencia x^+^2")
 
+    def test_normalize_for_pdf_font_replaces_superscript_letters_and_math_symbols(self) -> None:
+        normalized = normalize_for_pdf_font("aⁿ x aᵐ = aⁿ⁺ᵐ y √x ∈ ℝ")
+
+        self.assertEqual(normalized, "a^n x a^m = a^n^+^m y sqrtx in R")
+
 
 if __name__ == "__main__":
     unittest.main()

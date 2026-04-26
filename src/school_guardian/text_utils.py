@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 
 _SUPERSCRIPT_MAP = str.maketrans({
@@ -78,6 +79,20 @@ def normalize_for_pdf_font(text: str) -> str:
         "”": '"',
         "‘": "'",
         "’": "'",
+        "×": "x",
+        "÷": "/",
+        "±": "+/-",
+        "≥": ">=",
+        "≤": "<=",
+        "≠": "!=",
+        "∉": "not in",
+        "∞": "infinity",
+        "∈": "in",
+        "ℝ": "R",
+        "ℚ": "Q",
+        "ℤ": "Z",
+        "ℕ": "N",
+        "√": "sqrt",
         "⁰": "^0",
         "¹": "^1",
         "²": "^2",
@@ -95,10 +110,55 @@ def normalize_for_pdf_font(text: str) -> str:
         "⁾": "^)",
         "ⁿ": "^n",
         "ⁱ": "^i",
+        "ᵃ": "^a",
+        "ᵇ": "^b",
+        "ᶜ": "^c",
+        "ᵈ": "^d",
+        "ᵉ": "^e",
+        "ᶠ": "^f",
+        "ᵍ": "^g",
+        "ʰ": "^h",
+        "ᶦ": "^i",
+        "ʲ": "^j",
+        "ᵏ": "^k",
+        "ˡ": "^l",
+        "ᵐ": "^m",
+        "ᵒ": "^o",
+        "ᵖ": "^p",
+        "ʳ": "^r",
+        "ˢ": "^s",
+        "ᵗ": "^t",
+        "ᵘ": "^u",
+        "ᵛ": "^v",
+        "ʷ": "^w",
+        "ˣ": "^x",
+        "ʸ": "^y",
+        "ᶻ": "^z",
+        "ᴬ": "^A",
+        "ᴮ": "^B",
+        "ᴰ": "^D",
+        "ᴱ": "^E",
+        "ᴳ": "^G",
+        "ᴴ": "^H",
+        "ᴵ": "^I",
+        "ᴶ": "^J",
+        "ᴷ": "^K",
+        "ᴸ": "^L",
+        "ᴹ": "^M",
+        "ᴺ": "^N",
+        "ᴼ": "^O",
+        "ᴾ": "^P",
+        "ᴿ": "^R",
+        "ᵀ": "^T",
+        "ᵁ": "^U",
+        "ⱽ": "^V",
+        "ᵂ": "^W",
     }
     normalized = text
     for source, target in replacements.items():
         normalized = normalized.replace(source, target)
+    normalized = unicodedata.normalize("NFKD", normalized)
+    normalized = normalized.encode("latin-1", "ignore").decode("latin-1")
     return normalized
 
 

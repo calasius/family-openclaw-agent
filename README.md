@@ -100,9 +100,9 @@ docker compose run --rm school-guardian uv run python -m school_guardian downloa
 docker compose run --rm school-guardian uv run python -m school_guardian telegram-poll-once
 ```
 
-## OpenClaw con Azure OpenAI
+## OpenClaw con OpenRouter
 
-El repo incluye una base para correr OpenClaw por Docker usando Azure OpenAI y Telegram:
+El repo incluye una base para correr OpenClaw por Docker usando OpenRouter y Telegram:
 
 - [compose.openclaw.yaml](/var/home/calasius/repos/school-guardian/compose.openclaw.yaml)
 - [openclaw/.env.example](/var/home/calasius/repos/school-guardian/openclaw/.env.example)
@@ -119,11 +119,12 @@ Después completá `openclaw/.env` con:
 
 ```bash
 OPENCLAW_GATEWAY_TOKEN=un-token-largo
-AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_BASE_URL=https://<tu-recurso>.openai.azure.com/openai/v1/
+OPENROUTER_API_KEY=...
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_ALLOWED_FROM=<tu-user-id-numerico-de-telegram>
 ```
+
+Si `OPENROUTER_API_KEY` ya está exportada en el sistema, `compose.openclaw.yaml` la inyecta al contenedor y podés omitirla en `openclaw/.env`.
 
 Levantar Gateway:
 
@@ -183,7 +184,8 @@ podman exec -it openclaw-gateway bash
 
 Notas:
 
-- La config fija `azure-openai-responses/gpt-4o` como modelo principal.
+- La config fija `openrouter/google/gemma-4-26b-a4b-it` como modelo principal.
+- Si venías pensando en "Gemma 4 24B", el ref disponible en OpenRouter al 24 de abril de 2026 es `google/gemma-4-26b-a4b-it`.
 - Telegram en OpenClaw usa `Bot API` y `dmPolicy: "allowlist"` con tu `user id` numérico.
 - `school-guardian` y `family-orchestrator` quedan en el mismo workspace `/workspace`, que es este repo.
 - El plugin local `school-guardian-tools` ejecuta la CLI real del proyecto para pendientes, materias, detalle y foco diario leyendo desde la base local.
@@ -195,7 +197,7 @@ Fuentes oficiales:
 - Docker opcional y prebuilt image: https://docs.openclaw.ai/install/docker
 - Config en `~/.openclaw/openclaw.json`: https://docs.openclaw.ai/gateway/configuration
 - Telegram channel config: https://docs.openclaw.ai/channels/telegram
-- OpenAI/Azure model refs en OpenClaw: https://docs.openclaw.ai/providers/openai
+- OpenRouter en OpenClaw: https://docs.openclaw.ai/providers/openrouter
 
 ## OpenClaw
 
@@ -203,6 +205,7 @@ La estructura OpenClaw del repo quedó separada así:
 
 - `agents/family-orchestrator/AGENTS.md`: orquestador principal.
 - `agents/school-guardian/AGENTS.md`: agente escolar.
+- `agents/agent-watch/AGENTS.md`: AI agent/news watcher for a separate Telegram channel.
 - `agents/school-guardian/skills/classroom-read`: sync de Classroom.
 - `agents/school-guardian/skills/classroom-materials`: materiales y descargas.
 - `agents/school-guardian/skills/school-task-store`: store y consultas.
@@ -210,6 +213,46 @@ La estructura OpenClaw del repo quedó separada así:
 - `agents/school-guardian/skills/telegram-bridge`: atención por Telegram.
 
 Con esto, OpenClaw puede usar `school-guardian` como agente especializado y disparar comandos del CLI para sincronizar, listar tareas, bajar materiales y contestar mensajes.
+
+## Agent Watch
+
+`agent-watch` is a separate flow for sending updates about agents, Claude Code, OpenCode, OpenClaw, MCP, and open source models to another Telegram channel. It does not use the school channel.
+
+Main variables:
+
+```bash
+AGENT_WATCH_DB_PATH=data/agent_watch.db
+AGENT_WATCH_TELEGRAM_BOT_TOKEN=
+AGENT_WATCH_TELEGRAM_TARGET=@your_channel
+AGENT_WATCH_X_BEARER_TOKEN=
+AGENT_WATCH_X_QUERY=("claude code" OR opencode OR openclaw OR codex OR cursor OR aider OR "coding agent" OR "AI agent" OR "agent framework" OR "MCP server" OR "tool calling" OR "computer use" OR "browser agent" OR "open source agents" OR "local agents" OR "open source model" OR "open weights" OR langgraph OR autogen OR crewai OR ollama OR vllm) -is:retweet
+AGENT_WATCH_X_ACCOUNTS=simonw,swyx,latentspacepod,karpathy,jeremyphoward,rasbt,NathanpmYoung,reach_vb,LangChainAI,ollama,OpenRouterAI
+AGENT_WATCH_RSS_URLS=
+AGENT_WATCH_SCORE_THRESHOLD=4
+AGENT_WATCH_MAX_DIGEST_ITEMS=8
+AGENT_WATCH_MAX_ITEMS_PER_SOURCE=2
+AGENT_WATCH_DIGEST_WINDOW_HOURS=24
+AGENT_WATCH_MODEL_SCORING_ENABLED=false
+AGENT_WATCH_MODEL_SCORING_MAX_ITEMS=20
+AGENT_WATCH_MODEL_SCORING_PAGE_CHARS=5000
+```
+
+`AGENT_WATCH_X_ACCOUNTS` is combined with `AGENT_WATCH_X_QUERY` using X `from:` filters. This helps catch new tools early even when they do not match the keyword query perfectly.
+
+`AGENT_WATCH_MODEL_SCORING_ENABLED=true` makes fetch score a limited number of items with the configured model after reading a short page chunk. Keep `AGENT_WATCH_MODEL_SCORING_MAX_ITEMS` low to control cost.
+
+Local operation:
+
+```bash
+PYTHONPATH=src uv run python -m school_guardian agent-watch-init
+PYTHONPATH=src uv run python -m school_guardian agent-watch-fetch
+PYTHONPATH=src uv run python -m school_guardian agent-watch-digest
+PYTHONPATH=src uv run python -m school_guardian agent-watch-send
+```
+
+For Telegram, create a new channel, create a separate bot with BotFather, add it as channel admin, and set `AGENT_WATCH_TELEGRAM_TARGET` to `@channel_name` or the numeric `chat_id`.
+
+In OpenClaw, the gateway registers two crons: `agent-watch-fetch-15m` for ingestion and `agent-watch-digest-2h` for sending the digest to the separate channel.
 
 ## Troubleshooting: token OAuth de Google expirado o revocado
 

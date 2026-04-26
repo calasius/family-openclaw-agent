@@ -140,6 +140,131 @@ export default definePluginEntry({
     });
 
     api.registerTool({
+      name: "agent_watch_fetch",
+      description: "Fetches updates about agents, Claude Code, OpenCode, OpenClaw, MCP, and open source models from configured sources.",
+      parameters: emptyParams,
+      async execute() {
+        console.log("[school-guardian-tools] execute agent_watch_fetch");
+        return {
+          content: [{ type: "text", text: await runCli(["agent-watch-fetch"]) }],
+        };
+      },
+    });
+
+    api.registerTool({
+      name: "agent_watch_send",
+      description: "Generates and sends the Agent Watch digest to the configured separate Telegram channel.",
+      parameters: emptyParams,
+      async execute() {
+        console.log("[school-guardian-tools] execute agent_watch_send");
+        return {
+          content: [{ type: "text", text: await runCli(["agent-watch-send"]) }],
+        };
+      },
+    });
+
+    api.registerTool({
+      name: "agent_watch_topics",
+      description: "Lists topics/tags detected in the Agent Watch database with frequency and suggested query. Use this first to understand available tags before answering user searches.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Maximum number of recent database items to analyze. Default 500.",
+          },
+        },
+        additionalProperties: false,
+      },
+      async execute(_toolCallId: string, { limit }: { limit?: number }) {
+        console.log("[school-guardian-tools] execute agent_watch_topics");
+        const args = ["agent-watch-topics"];
+        if (limit) args.push("--limit", String(limit));
+        return {
+          content: [{ type: "text", text: await runCli(args) }],
+        };
+      },
+    });
+
+    api.registerTool({
+      name: "agent_watch_search",
+      description: "Searches Agent Watch items by free text. Before using this, call agent_watch_topics to map the user's request to real tags/topics.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search text, for example 'opencode coding agent' or 'open source model ollama vllm'.",
+          },
+          limit: {
+            type: "number",
+            description: "Maximum number of results. Default 10.",
+          },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+      async execute(_toolCallId: string, { query, limit }: { query: string; limit?: number }) {
+        console.log("[school-guardian-tools] execute agent_watch_search", query);
+        const args = ["agent-watch-search", query];
+        if (limit) args.push("--limit", String(limit));
+        return {
+          content: [{ type: "text", text: await runCli(args) }],
+        };
+      },
+    });
+
+    api.registerTool({
+      name: "agent_watch_topic",
+      description: "Searches Agent Watch items by normalized topic/tag, for example mcp, opencode, open-source-models, coding-agents, or local-inference.",
+      parameters: {
+        type: "object",
+        properties: {
+          topic: {
+            type: "string",
+            description: "Topic/tag to search. It can be passed with or without #.",
+          },
+          limit: {
+            type: "number",
+            description: "Maximum number of results. Default 10.",
+          },
+        },
+        required: ["topic"],
+        additionalProperties: false,
+      },
+      async execute(_toolCallId: string, { topic, limit }: { topic: string; limit?: number }) {
+        console.log("[school-guardian-tools] execute agent_watch_topic", topic);
+        const args = ["agent-watch-topic", topic];
+        if (limit) args.push("--limit", String(limit));
+        return {
+          content: [{ type: "text", text: await runCli(args) }],
+        };
+      },
+    });
+
+    api.registerTool({
+      name: "agent_watch_item_detail",
+      description: "Gets the full detail for an Agent Watch item using the source:external_id id returned by searches.",
+      parameters: {
+        type: "object",
+        properties: {
+          item_id: {
+            type: "string",
+            description: "ID in source:external_id format, for example x:123 or rss:https://example.com/post.",
+          },
+        },
+        required: ["item_id"],
+        additionalProperties: false,
+      },
+      async execute(_toolCallId: string, { item_id }: { item_id: string }) {
+        console.log("[school-guardian-tools] execute agent_watch_item_detail", item_id);
+        return {
+          content: [{ type: "text", text: await runCli(["agent-watch-item", item_id]) }],
+        };
+      },
+    });
+
+    api.registerTool({
       name: "school_guardian_list_pending",
       description: "Lista tareas pendientes reales desde el store interno sincronizado con Classroom.",
       parameters: emptyParams,

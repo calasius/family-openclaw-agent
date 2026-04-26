@@ -122,6 +122,44 @@ def build_parser() -> argparse.ArgumentParser:
     send_task_images.add_argument("--chat-id", default=None)
     send_task_images.set_defaults(handler=handle_send_task_images)
 
+    agent_watch_init = subparsers.add_parser("agent-watch-init", help="Create the Agent Watch database.")
+    agent_watch_init.set_defaults(handler=handle_agent_watch_init)
+
+    agent_watch_fetch = subparsers.add_parser("agent-watch-fetch", help="Fetch Agent Watch items from configured sources.")
+    agent_watch_fetch.set_defaults(handler=handle_agent_watch_fetch)
+
+    agent_watch_digest = subparsers.add_parser("agent-watch-digest", help="Render the current Agent Watch digest.")
+    agent_watch_digest.set_defaults(handler=handle_agent_watch_digest)
+
+    agent_watch_send = subparsers.add_parser("agent-watch-send", help="Send Agent Watch digest to its Telegram channel.")
+    agent_watch_send.set_defaults(handler=handle_agent_watch_send)
+
+    agent_watch_run_once = subparsers.add_parser("agent-watch-run-once", help="Fetch and send one Agent Watch digest.")
+    agent_watch_run_once.set_defaults(handler=handle_agent_watch_run_once)
+
+    agent_watch_search = subparsers.add_parser("agent-watch-search", help="Search Agent Watch items.")
+    agent_watch_search.add_argument("query")
+    agent_watch_search.add_argument("--limit", type=int, default=10)
+    agent_watch_search.set_defaults(handler=handle_agent_watch_search)
+
+    agent_watch_recent = subparsers.add_parser("agent-watch-recent", help="List recent Agent Watch items.")
+    agent_watch_recent.add_argument("--days", type=int, default=7)
+    agent_watch_recent.add_argument("--limit", type=int, default=10)
+    agent_watch_recent.set_defaults(handler=handle_agent_watch_recent)
+
+    agent_watch_topic = subparsers.add_parser("agent-watch-topic", help="Search Agent Watch by topic.")
+    agent_watch_topic.add_argument("topic")
+    agent_watch_topic.add_argument("--limit", type=int, default=10)
+    agent_watch_topic.set_defaults(handler=handle_agent_watch_topic)
+
+    agent_watch_topics = subparsers.add_parser("agent-watch-topics", help="List detected Agent Watch topics and tags.")
+    agent_watch_topics.add_argument("--limit", type=int, default=500)
+    agent_watch_topics.set_defaults(handler=handle_agent_watch_topics)
+
+    agent_watch_item = subparsers.add_parser("agent-watch-item", help="Show Agent Watch item detail by source:id.")
+    agent_watch_item.add_argument("item_id")
+    agent_watch_item.set_defaults(handler=handle_agent_watch_item)
+
     return parser
 
 
@@ -440,6 +478,97 @@ def handle_send_task_images(args: argparse.Namespace) -> None:
         return
 
     print("No se encontraron imágenes en los documentos adjuntos.")
+
+
+def handle_agent_watch_init(_args: argparse.Namespace) -> None:
+    settings, store = _agent_watch_context()
+    store.initialize()
+    print(f"Agent Watch DB initialized at {settings.db_path}")
+
+
+def handle_agent_watch_fetch(_args: argparse.Namespace) -> None:
+    from agent_watch.jobs import run_fetch
+
+    _settings, store = _agent_watch_context()
+    stats = run_fetch(_settings, store)
+    print(f"Agent Watch fetch: fetched={stats.fetched} inserted={stats.inserted} updated={stats.updated}")
+
+
+def handle_agent_watch_digest(_args: argparse.Namespace) -> None:
+    from agent_watch.jobs import run_digest
+
+    settings, store = _agent_watch_context()
+    digest, items = run_digest(settings, store)
+    print(digest)
+    print(f"\nitems={len(items)}")
+
+
+def handle_agent_watch_send(_args: argparse.Namespace) -> None:
+    from agent_watch.jobs import run_send_digest
+
+    settings, store = _agent_watch_context()
+    print(run_send_digest(settings, store))
+
+
+def handle_agent_watch_run_once(_args: argparse.Namespace) -> None:
+    from agent_watch.jobs import run_fetch, run_send_digest
+
+    settings, store = _agent_watch_context()
+    stats = run_fetch(settings, store)
+    print(f"Agent Watch fetch: fetched={stats.fetched} inserted={stats.inserted} updated={stats.updated}")
+    print(run_send_digest(settings, store))
+
+
+def handle_agent_watch_search(args: argparse.Namespace) -> None:
+    from agent_watch.formatting import format_items
+
+    _settings, store = _agent_watch_context()
+    store.initialize()
+    print(format_items(store.search_items(args.query, limit=args.limit)))
+
+
+def handle_agent_watch_recent(args: argparse.Namespace) -> None:
+    from agent_watch.formatting import format_items
+
+    _settings, store = _agent_watch_context()
+    store.initialize()
+    print(format_items(store.recent_items(days=args.days, limit=args.limit)))
+
+
+def handle_agent_watch_topic(args: argparse.Namespace) -> None:
+    from agent_watch.formatting import format_items
+    from agent_watch.topics import topic_terms
+
+    _settings, store = _agent_watch_context()
+    store.initialize()
+    print(format_items(store.search_any_terms(topic_terms(args.topic), limit=args.limit)))
+
+
+def handle_agent_watch_topics(args: argparse.Namespace) -> None:
+    from agent_watch.topics import count_topics, format_topic_counts
+
+    _settings, store = _agent_watch_context()
+    store.initialize()
+    print(format_topic_counts(count_topics(store.all_relevant_items(limit=args.limit))))
+
+
+def handle_agent_watch_item(args: argparse.Namespace) -> None:
+    from agent_watch.formatting import format_item_detail
+
+    if ":" not in args.item_id:
+        raise RuntimeError("Use source:external_id format, for example x:123 or rss:https://...")
+    source, external_id = args.item_id.split(":", 1)
+    _settings, store = _agent_watch_context()
+    store.initialize()
+    print(format_item_detail(store.item_detail(source, external_id)))
+
+
+def _agent_watch_context():
+    from agent_watch.config import get_agent_watch_settings
+    from agent_watch.store import AgentWatchStore
+
+    settings = get_agent_watch_settings()
+    return settings, AgentWatchStore(settings)
 
 
 def _print_tasks(tasks, empty_message: str) -> None:

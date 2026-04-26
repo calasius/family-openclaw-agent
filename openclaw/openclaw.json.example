@@ -9,9 +9,9 @@
   },
   "env": {
     "vars": {
-      "AZURE_OPENAI_API_KEY": "${AZURE_OPENAI_API_KEY}",
-      "AZURE_OPENAI_BASE_URL": "${AZURE_OPENAI_BASE_URL}",
-      "TELEGRAM_BOT_TOKEN": "${TELEGRAM_BOT_TOKEN}"
+      "OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}",
+      "TELEGRAM_BOT_TOKEN": "${TELEGRAM_BOT_TOKEN}",
+      "AGENT_WATCH_TELEGRAM_BOT_TOKEN": "${AGENT_WATCH_TELEGRAM_BOT_TOKEN}"
     }
   },
   "browser": {
@@ -51,6 +51,12 @@
     "allow": [
       "school_guardian_skill_log",
       "school_guardian_web_search",
+      "agent_watch_fetch",
+      "agent_watch_send",
+      "agent_watch_topics",
+      "agent_watch_search",
+      "agent_watch_topic",
+      "agent_watch_item_detail",
       "school_guardian_ping",
       "school_guardian_sync",
       "school_guardian_list_pending",
@@ -67,14 +73,7 @@
     "defaults": {
       "workspace": "/home/node/.openclaw/workspaces",
       "model": {
-        "primary": "azure-openai-responses/gpt-4o"
-      },
-      "models": {
-        "azure-openai-responses/gpt-4o": {
-          "params": {
-            "responsesServerCompaction": true
-          }
-        }
+        "primary": "openai-codex/gpt-5.4"
       }
     },
     "list": [
@@ -84,8 +83,14 @@
         "tools": {
           "allow": [
             "school_guardian_skill_log",
-      "school_guardian_web_search",
-      "school_guardian_ping",
+            "school_guardian_web_search",
+            "agent_watch_fetch",
+            "agent_watch_send",
+            "agent_watch_topics",
+            "agent_watch_search",
+            "agent_watch_topic",
+            "agent_watch_item_detail",
+            "school_guardian_ping",
             "school_guardian_sync",
             "school_guardian_list_pending",
             "school_guardian_list_subjects",
@@ -97,13 +102,36 @@
           ],
           "deny": ["nodes"]
         }
+      },
+      {
+        "id": "agent-watch",
+        "workspace": "/home/node/.openclaw/workspaces/agent-watch",
+        "tools": {
+          "allow": [
+            "agent_watch_fetch",
+            "agent_watch_send",
+            "agent_watch_topics",
+            "agent_watch_search",
+            "agent_watch_topic",
+            "agent_watch_item_detail"
+          ],
+          "deny": ["nodes", "browser"]
+        }
       }
     ]
   },
   "bindings": [
     {
       "match": {
-        "channel": "telegram"
+        "channel": "telegram",
+        "accountId": "agentwatch"
+      },
+      "agentId": "agent-watch"
+    },
+    {
+      "match": {
+        "channel": "telegram",
+        "accountId": "default"
       },
       "agentId": "school-guardian"
     }
@@ -111,13 +139,25 @@
   "channels": {
     "telegram": {
       "enabled": true,
-      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "defaultAccount": "default",
       "dmPolicy": "allowlist",
       "allowFrom": [
         "8687277701",
         "8616681320",
         "8582567139"
       ],
+      "accounts": {
+        "default": {
+          "name": "School Guardian",
+          "botToken": "${TELEGRAM_BOT_TOKEN}"
+        },
+        "agentwatch": {
+          "name": "Agent Watch",
+          "dmPolicy": "open",
+          "allowFrom": ["*"],
+          "botToken": "${AGENT_WATCH_TELEGRAM_BOT_TOKEN}"
+        }
+      },
       "groups": {
         "*": {
           "requireMention": true
